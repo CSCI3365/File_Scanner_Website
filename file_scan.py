@@ -16,6 +16,7 @@ md5 = os.system("md5sum #file")
 sha256 = os.system("sha256sum #file")
 sha1 = os.system("sha1sum #file")
 website_location = 'https://github.com/CSCI3365/File_Scanner_Website'
+apikey = os.getenv("VT_API2")
 
 # I imported Flask as a starting point and to maybe develop from it since it interacts with http/https methods
 
