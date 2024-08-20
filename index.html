@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scanny McScanface - Virus Scan Website</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+        }
+        #upload-section, #status-section, #results-section, #recent-scans-section {
+            margin-bottom: 20px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        #file-input {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        #upload-button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #upload-button:hover {
+            background-color: #2980b9;
+        }
+        #upload-button:disabled {
+            background-color: dimgrey;
+        }
+        #status-bar {
+            height: 20px;
+            background-color: #ecf0f1;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        #status-progress {
+            height: 100%;
+            width: 0;
+            background-color: #2ecc71;
+            transition: width 0.5s ease-in-out;
+        }
+        #results-section, #recent-scans-section {
+            display: none;
+        }
+        .result-item {
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+        }
+        .expand-button {
+            background-color: #34495e;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .expand-button:hover {
+            background-color: #2c3e50;
+        }
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Virus Scan Website</h1>
+
+    <div id="upload-section">
+        <input type="file" id="file-input">
+        <button id="upload-button" disabled>Upload and Scan</button>
+    </div>
+
+    <div id="status-section" style="display: none;">
+        <h2>Scan Status</h2>
+        <p id="status-text">Uploading file...</p>
+    </div>
+
+    <div id="results-section">
+        <h2>Scan Results</h2>
+        <div id="results-content"></div>
+    </div>
+
+    <div id="recent-scans-section">
+        <h2>Recent File Scans</h2>
+        <button id="expand-recent-scans" class="expand-button">Show Recent Scans</button>
+        <div id="recent-scans-list" style="display: none;"></div>
+    </div>
+
+    <script>
+        const uploadSection = document.getElementById('upload-section');
+        const statusSection = document.getElementById('status-section');
+        const resultsSection = document.getElementById('results-section');
+        const recentScansSection = document.getElementById('recent-scans-section');
+        const fileInput = document.getElementById('file-input');
+        const uploadButton = document.getElementById('upload-button');
+        const statusText = document.getElementById('status-text');
+        const resultsContent = document.getElementById('results-content');
+        const expandRecentScansButton = document.getElementById('expand-recent-scans');
+        const recentScansList = document.getElementById('recent-scans-list');
+
+        // enable/disable upload button
+        fileInput.addEventListener('change', (event) => {
+          const file = event.target.files;
+
+          if (file) {
+              uploadButton.removeAttribute('disabled');
+          } else {
+              uploadButton.setAttribute('disabled');
+          }
+        });
+
+
+        uploadButton.addEventListener('click', () => {
+            const file = fileInput.files[0];
+            if (file) {
+                uploadSection.style.display = 'none';
+                statusSection.style.display = 'block';
+                handoffToPython(file);
+            } else {
+                alert('Please select a file to upload.');
+            }
+        });
+
+        expandRecentScansButton.addEventListener('click', () => {
+            if (recentScansList.style.display === 'none') {
+                recentScansList.style.display = 'block';
+                expandRecentScansButton.textContent = 'Hide Recent Scans';
+                loadRecentScans();
+            } else {
+                recentScansList.style.display = 'none';
+                expandRecentScansButton.textContent = 'Show Recent Scans';
+            }
+        });
+
+        function handoffToPython(file) {
+            // FIXME: trigger python file, await results
+            results = 1;
+            if (results) {
+                statusText.textContent = 'Scan complete!';
+                setTimeout(() => {
+                    statusSection.style.display = 'none';
+                    displayResults(file.name);
+                }, 1000);
+            } else {
+                statusText.textContent = 'Analyzing file...';
+            };
+        }
+
+        function displayResults(fileName) {
+            resultsSection.style.display = 'block';
+
+            // sample dummy data for testing
+            const dummyResults = {
+                fileName: fileName,
+                aggregateResult: "malicious", //assuming we will aggregate results from VirusTotal into a saved file.
+                results: {
+                    "ALYac": { "category": "malicious", "result": "Dialer.Webdialer.F" },
+                    "Avast": { "category": "malicious", "result": "Win32:Dh-A [Heur]" },
+                    "CAT-QuickHeal": { "category": "malicious", "result": "Trojan.Webdial" },
+                    "ClamAV": { "category": "malicious", "result": "Win.Trojan.Dialer-83" },
+                    "Comodo": { "category": "malicious", "result": "Malware@#1o6vtbly4swmm" }
+                }
+            };
+
+            // FIXME: replace dummy results
+            let resultsHtml = `<h3>File: ${dummyResults.fileName}</h3>`;
+            resultsHtml += `<p>Aggregate Result: <strong>${dummyResults.aggregateResult}</strong></p>`;
+            resultsHtml += '<h4>Detailed Results:</h4>';
+
+            for (const [engine, result] of Object.entries(dummyResults.results)) {
+                resultsHtml += `
+                    <div class="result-item">
+                        <strong>${engine}:</strong> ${result.category}
+                        ${result.result ? `(${result.result})` : ''}
+                    </div>
+                `;
+            }
+
+            resultsContent.innerHTML = resultsHtml;
+        }
+
+        function loadRecentScans() {
+          // dummy data from assumed csv file where scan data is saved.
+            const dummyRecentScans = [
+                { fileName: "document1.pdf", analysisId: "abc123", result: "harmless" },
+                { fileName: "program.exe", analysisId: "def456", result: "malicious" },
+                { fileName: "image.jpg", analysisId: "ghi789", result: "suspicious" }
+            ];
+
+            let scansHtml = '<ul>';
+            // FIXME: replace dummy results
+            for (const scan of dummyRecentScans) {
+                scansHtml += `
+                    <li>
+                        <strong>${scan.fileName}</strong> (${scan.analysisId}): ${scan.result}
+                        <button onclick="displayResults('${scan.fileName}')">View Details</button>
+                    </li>
+                `;
+            }
+            scansHtml += '</ul>';
+
+            recentScansList.innerHTML = scansHtml;
+        }
+    </script>
+</body>
+</html>
