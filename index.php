@@ -1,7 +1,26 @@
 <?php
-
+// This line needs to be run in your terminal 'composer require guzzlehttp/guzzle' 
+// Or you need to install the guzzle package manager to handle http requests.
 function scanFile($file) {
+
 // replace with api call before production.
+    require_once('vendor/autoload.php');
+    $client = new \GuzzleHttp\Client();
+    $a = getenv('VT_API2');
+    $filemd5Hash = md5_file($file);
+    $vtURL = 'https://www.virustotal.com/api/v3/files/' . $filemd5Hash . '/';
+    
+    try {
+        $response = $client->request('GET', $vtURL, [
+            'headers' => [
+                'accept' => 'application/json',
+                'x-apikey' => $a,
+            ],
+        ]);
+        $results = json_decode($response->getBody(), true);
+        saveScanResult($results);
+        return $results;
+    /* Example response from VT
     $response = '{
         "data": {
             "attributes": {
@@ -72,8 +91,12 @@ function scanFile($file) {
             "type": "analysis"
         }
     }';
-
-    return json_decode($response, true);
+    */
+    // return json_decode($response, true);
+    } catch (\GuzzleHttp\Exception\RequestException $e) {
+        $error = $e->getMessage();
+        return null;
+    }
 }
 
 // determine file status according to all results
@@ -91,15 +114,20 @@ $error = null;
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES["fileToUpload"])) {
     //$target_dir = "uploads/";
     //$target_file = $target_dir . basename($_FILES["fileToUpload"]["name"]);
-    $target_file = null;
+    //$target_file = null;
     // Prevent file from being uploaded twice
     // if (!file_exists($target_dir)) {
     //     mkdir($target_dir, 0777, true);
     // }
-
+    $target_file = $_FILES["fileToUpload"]["name"];
+    if (!file_exists($target_file)) {
+        $error = "File not found.";
+        echo $error;
+    } else {
+        
     //if (move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $target_file)) {
         $scanResult = scanFile($target_file);
-    //} else {
+    } //else {
         // $error = "Sorry, there was an error uploading your file.";
     //}
 }
@@ -107,10 +135,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES["fileToUpload"])) {
 // save scan result to CSV
 function saveScanResult($result) {
     $file = fopen("scan_results.csv", "a");
-    //FIXME: save results to file
-    //$result date
-    //$result id
-    //getAggregateResult($result['data']['attributes']['stats']
+
+    $date = date("Y-m-d H:i:s", $result['data']['attributes']['date']);
+    $fileId = $result['data']['id'];
+    $aggregate_result = getAggregateResult($result['data']['attributes']['stats']);
+
+    $write = [$date, $fileId, $aggregate_result];
+    fputcsv($file, $row);
+
     fclose($file);
 }
 
@@ -176,16 +208,22 @@ function getRecentScans() {
     <form action="<?php echo $_SERVER['PHP_SELF']; ?>" method="post" enctype="multipart/form-data">
         Select file to upload:
         <input type="file" name="fileToUpload" id="fileToUpload">
-        <input type="submit" value="Upload and Scan" name="submit">
+        <input type="submit" value="Upload and Scan" name="submit"> 
     </form>
-
+    <!--      
+    <form action="<php echo $_SERVER['PHP_SELF']; ?>" method="get" enctype="multipart/form-data">
+        See Scan Results
+        <input type="submit" value="results" name="submit">
+    </form> -->
+        
     <?php if ($error): ?>
         <p class="error"><?php echo $error; ?></p>
     <?php endif; ?>
-
+    
     <?php if ($scanResult): ?>
         <h2>Scan Results</h2>
-        <!-- <p>File: FIXME: show file name and path </p> -->
+        <!-- <p>File: FIXME: show file name and path </p> the line below should show the file name -->
+        <p>For File: <?php echo $_FILES["fileToUpload"]["name"]; ?></p>
         <p>Aggregate Result: <strong><?php echo getAggregateResult($scanResult); ?></strong></p>
         <h3>Detailed Results:</h3>
         <?php foreach ($scanResult['data']['attributes']['results'] as $engine => $result): ?>
@@ -197,7 +235,7 @@ function getRecentScans() {
             </div>
         <?php endforeach; ?>
     <?php endif; ?>
-
+                    
     <h2>Recent Scans</h2>
     <?php $recentScans = getRecentScans(); ?>
     <?php if ($recentScans === []): ?>
