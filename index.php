@@ -7,11 +7,25 @@ function scanFile($file) {
     require_once('vendor/autoload.php');
     $client = new \GuzzleHttp\Client();
     $a = getenv('VT_API2');
+    $vt_URL_For_Files = 'https://www.virustotal.com/api/v3/files/';
     $filemd5Hash = md5_file($file);
-    $vtURL = 'https://www.virustotal.com/api/v3/files/' . $filemd5Hash . '/';
+    $filecontents = file_get_contents($file);
+    $base64_encoded_filecontents = base64_encode($filecontents);
+    // $vt_URL_For_File_Report = $vt_URL_For_Files . $filemd5Hash . '/';
     
+    // having to define the headers for the multipart
+    $file_headers = [
+        'Content-Type' => 'application/octet-stream'
+    ];
+    // was running a url request but am changing it to run a file request. 
     try {
-        $response = $client->request('GET', $vtURL, [
+        $response = $client->request('POST', $vt_URL_For_Files, [
+            'multipart' => [
+                'name' => 'file',
+                'filename' => basename($file),
+                'contents' => 'data:application/octet-stream;name=' . $filename . ';base64,' . $base64_encoded_filecontents,
+                'headers' => $file_headers
+            ],
             'headers' => [
                 'accept' => 'application/json',
                 'x-apikey' => $a,
@@ -20,6 +34,7 @@ function scanFile($file) {
         $results = json_decode($response->getBody(), true);
         saveScanResult($results);
         return $results;
+    
     /* Example response from VT
     $response = '{
         "data": {
@@ -141,7 +156,7 @@ function saveScanResult($result) {
     $aggregate_result = getAggregateResult($result['data']['attributes']['stats']);
 
     $write = [$date, $fileId, $aggregate_result];
-    fputcsv($file, $row);
+    fputcsv($file, $write);
 
     fclose($file);
 }
