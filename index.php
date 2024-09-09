@@ -129,7 +129,7 @@ function getAggregateResult($results) {
 // save uploaded file and send to VirusTotal
 $scanResult = null;
 $error = null;
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES["fileToUpload"])) {
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES["fileToUpload"]) && ($_FILES["fileToUpload"]["error"] == UPLOAD_ERR_OK)) {
     //$target_dir = "uploads/";
     //$target_file = $target_dir . basename($_FILES["fileToUpload"]["name"]);
     //$target_file = null;
@@ -137,7 +137,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES["fileToUpload"])) {
     // if (!file_exists($target_dir)) {
     //     mkdir($target_dir, 0777, true);
     // }
-    $target_file = $_FILES["fileToUpload"]["name"];
+    $target_file = $_FILES["fileToUpload"]["tmp_name"];
     if (!file_exists($target_file)) {
         $error = "File not found.";
         echo $error;
