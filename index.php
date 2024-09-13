@@ -1,120 +1,45 @@
 <?php
 // This line needs to be run in your terminal 'composer require guzzlehttp/guzzle' 
 // Or you need to install the guzzle package manager to handle http requests.
-function scanFile($file) {
+require_once('vendor/autoload.php');
+$client = new \GuzzleHttp\Client();
+$a = getenv('VT_API2');
+if (! $a) {
+    throw new Exception('No API key found');
+}
 
-// replace with api call before production.
-    require_once('vendor/autoload.php');
-    $client = new \GuzzleHttp\Client();
-    $a = getenv('VT_API2');
-    if (! $a) {
-        throw new Exception('No API key found');
-    }
+function getFile($client, $a) {
+    $test_file_hash = "e19c1283c925b3206685ff522acfe3e6";
+    $response = $client->request('GET', 'https://www.virustotal.com/api/v3/files/' . $test_file_hash, [
+        'headers' => [
+            'accept' => 'application/json',
+            'x-apikey' => $a,
+        ],
+    ]);
+    $return = json_decode($response->getBody(), true);
+    echo $response->getBody();
+}
+ 
+function postFile() {
     $vt_URL_For_Files = 'https://www.virustotal.com/api/v3/files/';
-    // These Variables below are for a file ananlysis call.
-    // $filemd5Hash = md5_file($file);
-    // $filecontents = file_get_contents($file);
-    // $base64_encoded_filecontents = base64_encode($filecontents);
-    // $vt_URL_For_File_Report = $vt_URL_For_Files . $filemd5Hash . '/';
-    
-
-    // was running a url request but am changing it to run a file request. 
-    try {
-        $response = $client->request('POST', $vt_URL_For_Files, [
-            'multipart' => [
-                'name' => 'file',
-                'filename' => basename($file),
-                'contents' => fopen($file, 'r'),//updating this part to read from a stream 'data:application/octet-stream;name=' . $filename . ';base64,' . $base64_encoded_filecontents,
-                'headers' => [
-                    'Content-Type' => 'application/pdf'
-                ]
-            ],
+    $response = $client->request('POST', $vt_URL_For_Files, [
+        'multipart' => [
+            'name' => 'file',
+            'filename' => basename(path: $file),
+            'contents' => file_get_contents(filename: $file),//updating this part to read from a stream 'data:application/octet-stream;name=' . $filename . ';base64,' . $base64_encoded_filecontents,
             'headers' => [
-                'accept' => 'application/json',
-                'x-apikey' => $a,
-            ],
-        ]);
-        $results = json_decode($response->getBody(), true);
-        saveScanResult($results);
-        return $results;
-    
-    /* Example response from VT
-    $response = '{
-        "data": {
-            "attributes": {
-                "date": 1591701363,
-                "results": {
-                    "ALYac": {
-                        "category": "malicious",
-                        "engine_name": "ALYac",
-                        "engine_update": "20200609",
-                        "engine_version": "1.1.1.5",
-                        "method": "blacklist",
-                        "result": "Dialer.Webdialer.F"
-                    },
-                    "Avast": {
-                        "category": "malicious",
-                        "engine_name": "Avast",
-                        "engine_update": "20200609",
-                        "engine_version": "18.4.3895.0",
-                        "method": "blacklist",
-                        "result": "Win32:Dh-A [Heur]"
-                    },
-                    "Avast-Mobile": {
-                        "category": "undetected",
-                        "engine_name": "Avast-Mobile",
-                        "engine_update": "20200609",
-                        "engine_version": "200609-00",
-                        "method": "blacklist",
-                        "result": null
-                    },
-                    "CAT-QuickHeal": {
-                        "category": "malicious",
-                        "engine_name": "CAT-QuickHeal",
-                        "engine_update": "20200609",
-                        "engine_version": "14.00",
-                        "method": "blacklist",
-                        "result": "Trojan.Webdial"
-                    },
-                    "ClamAV": {
-                        "category": "malicious",
-                        "engine_name": "ClamAV",
-                        "engine_update": "20200608",
-                        "engine_version": "0.102.3.0",
-                        "method": "blacklist",
-                        "result": "Win.Trojan.Dialer-83"
-                    },
-                    "Comodo": {
-                        "category": "malicious",
-                        "engine_name": "Comodo",
-                        "engine_update": "20200608",
-                        "engine_version": "32518",
-                        "method": "blacklist",
-                        "result": "Malware@#1o6vtbly4swmm"
-                    }
-                },
-                "stats": {
-                    "confirmed-timeout": 0,
-                    "failure": 0,
-                    "harmless": 0,
-                    "malicious": 5,
-                    "suspicious": 0,
-                    "timeout": 0,
-                    "type-unsupported": 0,
-                    "undetected": 1
-                },
-                "status": "completed"
-            },
-            "id": "8zc5dTFiYmMxOTEpNzMzZWZmODE1ND7mYjU1ZjY5Npk6MTU5MlcwMTM2Mw==",
-            "type": "analysis"
-        }
-    }';
-    */
-    // return json_decode($response, true);
-    } catch (\GuzzleHttp\Exception\RequestException $e) {
-        $error = $e->getMessage();
-        return $error;
-    }
+                'Content-Type' => 'application/pdf'
+            ]
+        ],
+        'headers' => [
+            'accept' => 'application/json',
+            'x-apikey' => $a,
+        ],
+    ]);
+    $results = json_decode($response->getBody(), true);
+    saveScanResult($results);
+    return $results;
+
 }
 
 // determine file status according to all results
@@ -144,7 +69,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES["fileToUpload"]) && ($
     } else {
         
     //if (move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $target_file)) {
-        $scanResult = scanFile($target_file);
+        $scanResult = getFile($client, $a);
     } //else {
         // $error = "Sorry, there was an error uploading your file.";
     //}
@@ -239,33 +164,37 @@ function getRecentScans() {
     <?php if ($error): ?>
         <p class="error"><?php echo $error; ?></p>
     <?php endif; ?>
-    
-    <?php if ($scanResult): ?>
-        <h2>Scan Results</h2>
-        <!-- <p>File: FIXME: show file name and path </p> the line below should show the file name -->
-        <p>For File: <?php echo $_FILES["fileToUpload"]["name"]; ?></p>
-        <p>Aggregate Result: <strong><?php echo getAggregateResult($scanResult); ?></strong></p>
-        <h3>Detailed Results:</h3>
-        <?php foreach ($scanResult['data']['attributes']['results'] as $engine => $result): ?>
-            <div class="result-item">
-                <strong><?php echo $engine; ?>:</strong> <?php echo $result['category']; ?>
-                <?php if ($result['result']): ?>
-                    (<?php echo $result['result']; ?>)
-                <?php endif; ?>
-            </div>
-        <?php endforeach; ?>
-    <?php endif; ?>
-                    
-    <h2>Recent Scans</h2>
-    <?php $recentScans = getRecentScans(); ?>
-    <?php if ($recentScans === []): ?>
-        <p>No recent scans.</p>
-    <?php else: ?>
-        <ul>
-            <?php foreach ($recentScans as $scan): ?>
-                <li><?php echo $scan['fileName']; ?> - <?php echo $scan['result']; ?></li>
-            <?php endforeach; ?>
-        </ul>
-    <?php endif; ?>
 </body>
 </html>
+    <!--
+    <?php #if ($scanResult): ?>
+        <h2>Scan Results</h2>
+         #<p>File: FIXME: show file name and path </p> the line below should show the file name 
+        <p>For File: <?php #echo $_FILES["fileToUpload"]["name"]; ?></p>
+        <p>Aggregate Result: <strong><?php #echo getAggregateResult($scanResult); ?></strong></p>
+        <h3>Detailed Results:</h3>
+        <?php #foreach ($scanResult['data']['attributes']['results'] as $engine => $result): ?>
+            <div class="result-item">
+                <strong><?php #echo $engine; ?>:</strong> <?php #echo $result['category']; ?>
+                <?php #if ($result['result']): ?>
+                    (<?php #echo $result['result']; ?>)
+                <?php #endif; ?>
+            </div>
+        <?php #endforeach; ?>
+    <?php #endif; ?>
+                    
+    <h2>Recent Scans</h2>
+    <?php #$recentScans = getRecentScans(); ?>
+    <?php #if ($recentScans === []): ?>
+        <p>No recent scans.</p>
+    <?php #else: ?>
+        <ul>
+            <?php #foreach ($recentScans as $scan): ?>
+                <li><?php #echo $scan['fileName']; ?> - <?php #echo $scan['result']; ?></li>
+            <?php #endforeach; ?>
+        </ul>
+    <?php #endif; ?>
+    
+</body>
+</html>
+            -->  
