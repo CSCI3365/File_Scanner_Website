@@ -1,5 +1,5 @@
 <?php
-// This line needs to be run in your terminal 'composer require guzzlehttp/guzzle' 
+// This line needs to be run in your terminal 'composer require guzzlehttp/guzzle'
 // Or you need to install the guzzle package manager to handle http requests.
 require_once('vendor/autoload.php');
 $client = new \GuzzleHttp\Client();
@@ -9,7 +9,7 @@ if (! $a) {
 }
 
 function getFile($client, $a) {
-    $test_file_hash = "e19c1283c925b3206685ff522acfe3e6";
+    $test_file_hash = "e19c1283c925b3206685ff522acfe3e6"; //test file_id for proof of concept
     $response = $client->request('GET', 'https://www.virustotal.com/api/v3/files/' . $test_file_hash, [
         'headers' => [
             'accept' => 'application/json',
@@ -19,7 +19,7 @@ function getFile($client, $a) {
     $return = json_decode($response->getBody(), true);
     echo $response->getBody();
 }
- 
+
 function postFile() {
     $vt_URL_For_Files = 'https://www.virustotal.com/api/v3/files/';
     $response = $client->request('POST', $vt_URL_For_Files, [
@@ -54,20 +54,17 @@ function getAggregateResult($results) {
 // save uploaded file and send to VirusTotal
 $scanResult = null;
 $error = null;
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES["fileToUpload"]) && ($_FILES["fileToUpload"]["error"] == UPLOAD_ERR_OK)) {
-    //$target_dir = "uploads/";
-    //$target_file = $target_dir . basename($_FILES["fileToUpload"]["name"]);
-    //$target_file = null;
-    // Prevent file from being uploaded twice
-    // if (!file_exists($target_dir)) {
-    //     mkdir($target_dir, 0777, true);
-    // }
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES["fileToUpload"])) {
+    echo "File recieved, saving and sending to VirusTotal";
+    $target_dir = "uploads/";
+    $target_file = $target_dir . basename($_FILES["fileToUpload"]["name"]);
+
     $target_file = $_FILES["fileToUpload"]["tmp_name"];
     if (!file_exists($target_file)) {
         $error = "File not found.";
         echo $error;
     } else {
-        
+
     //if (move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $target_file)) {
         $scanResult = getFile($client, $a);
     } //else {
@@ -97,8 +94,8 @@ if ($scanResult) {
 function getRecentScans() {
     $recentResults = [];
     //FIXME: load file results to be displayed to user from scan_results.csv
-    $file = fopen("scan_results.csv", "r"); 
-
+    $file = fopen("scan_results.csv", "r");
+    return [];
 }
 ?>
 
@@ -153,48 +150,46 @@ function getRecentScans() {
     <form action="<?php echo $_SERVER['PHP_SELF']; ?>" method="post" enctype="multipart/form-data">
         Select file to upload:
         <input type="file" name="fileToUpload" id="fileToUpload">
-        <input type="submit" value="Upload and Scan" name="submit"> 
+        <input type="submit" value="Upload and Scan" name="submit">
     </form>
-    <!--      
+    <!--
     <form action="<php echo $_SERVER['PHP_SELF']; ?>" method="get" enctype="multipart/form-data">
         See Scan Results
         <input type="submit" value="results" name="submit">
     </form> -->
-        
+
     <?php if ($error): ?>
         <p class="error"><?php echo $error; ?></p>
     <?php endif; ?>
 </body>
 </html>
-    <!--
-    <?php #if ($scanResult): ?>
+    <?php if ($scanResult): ?>
         <h2>Scan Results</h2>
-         #<p>File: FIXME: show file name and path </p> the line below should show the file name 
+        <p>File:  FIXME show file name and path</p>
         <p>For File: <?php #echo $_FILES["fileToUpload"]["name"]; ?></p>
         <p>Aggregate Result: <strong><?php #echo getAggregateResult($scanResult); ?></strong></p>
         <h3>Detailed Results:</h3>
-        <?php #foreach ($scanResult['data']['attributes']['results'] as $engine => $result): ?>
+        <?php foreach ($scanResult['data']['attributes']['results'] as $engine => $result): ?>
             <div class="result-item">
-                <strong><?php #echo $engine; ?>:</strong> <?php #echo $result['category']; ?>
-                <?php #if ($result['result']): ?>
-                    (<?php #echo $result['result']; ?>)
-                <?php #endif; ?>
+                <strong><?php echo $engine; ?>:</strong> <?php echo $result['category']; ?>
+                <?php if ($result['result']): ?>
+                    (<?php echo $result['result']; ?>)
+                <?php endif; ?>
             </div>
-        <?php #endforeach; ?>
-    <?php #endif; ?>
-                    
+        <?php endforeach; ?>
+    <?php endif; ?>
+
     <h2>Recent Scans</h2>
-    <?php #$recentScans = getRecentScans(); ?>
-    <?php #if ($recentScans === []): ?>
+    <?php $recentScans = getRecentScans(); ?>
+    <?php if ($recentScans === []): ?>
         <p>No recent scans.</p>
-    <?php #else: ?>
+    <?php else: ?>
         <ul>
-            <?php #foreach ($recentScans as $scan): ?>
-                <li><?php #echo $scan['fileName']; ?> - <?php #echo $scan['result']; ?></li>
-            <?php #endforeach; ?>
+            <?php foreach ($recentScans as $scan): ?>
+                <li><?php echo $scan['fileName']; ?> - <?php echo $scan['result']; ?></li>
+            <?php endforeach; ?>
         </ul>
-    <?php #endif; ?>
-    
+    <?php endif; ?>
+
 </body>
 </html>
-            -->  
