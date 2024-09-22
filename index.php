@@ -2,15 +2,17 @@
 // This line needs to be run in your terminal 'composer require guzzlehttp/guzzle'
 // Or you need to install the guzzle package manager to handle http requests.
 require_once('vendor/autoload.php');
-$client = new \GuzzleHttp\Client();
+$getFileClient = new \GuzzleHttp\Client();
+$postFileClient = new \GuzzleHttp\Client();
+$getAnalysisClient = new \GuzzleHttp\Client();
 $a = getenv('VT_API2');
 if (! $a) {
     throw new Exception('No API key found');
 }
 
-function getFile($client, $a) {
+function getFile() {
     $test_file_hash = "e19c1283c925b3206685ff522acfe3e6"; //test file_id for proof of concept
-    $response = $client->request('GET', 'https://www.virustotal.com/api/v3/files/' . $test_file_hash, [
+    $response = $getFileClient->request('GET', 'https://www.virustotal.com/api/v3/files/' . $test_file_hash, [
         'headers' => [
             'accept' => 'application/json',
             'x-apikey' => $a,
@@ -18,11 +20,12 @@ function getFile($client, $a) {
     ]);
     $return = json_decode($response->getBody(), true);
     echo $response->getBody();
+    return $return;
 }
 
 function postFile() {
     $vt_URL_For_Files = 'https://www.virustotal.com/api/v3/files/';
-    $response = $client->request('POST', $vt_URL_For_Files, [
+    $response = $postFileClient->request('POST', $vt_URL_For_Files, [
         'multipart' => [
             'name' => 'file',
             'filename' => basename(path: $file),
@@ -36,10 +39,35 @@ function postFile() {
             'x-apikey' => $a,
         ],
     ]);
-    $results = json_decode($response->getBody(), true);
-    saveScanResult($results);
-    return $results;
+    echo $response->getBody();
+    $analysisLink = $response->getBody()['data']['links']['self'];
 
+    // {
+    //     "data": {
+    //       "type": "analysis",
+    //       "id": "MzBkNzE0ZjIyNDg1MDA3MWFlYzZiNzE5NzE0N2MzYzA6MTcyNjk2NTkzMA==",
+    //       "links": {
+    //         "self": "https://www.virustotal.com/api/v3/analyses/MzBkNzE0ZjIyNDg1MDA3MWFlYzZiNzE5NzE0N2MzYzA6MTcyNjk2NTkzMA=="
+    //       }
+    //     }
+    //   }
+
+    return getAnalysis($analysisLink);
+}
+
+// get the analysis data
+function getAnalysis($analysisLink) {
+
+    $response = $getAnalysisClient->request('GET', $analysisLink, [
+        'headers' => [
+          'accept' => 'application/json',
+          'x-apikey' => $a,
+        ],
+      ]);
+
+    echo $response->getBody();
+    return $response->getBody();
+      
 }
 
 // determine file status according to all results
@@ -55,21 +83,25 @@ function getAggregateResult($results) {
 $scanResult = null;
 $error = null;
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES["fileToUpload"])) {
-    echo "File recieved, saving and sending to VirusTotal";
+    echo "POST Recieved";
     $target_dir = "uploads/";
     $target_file = $target_dir . basename($_FILES["fileToUpload"]["name"]);
+    
+    // make uploads dir if it doesn't exist
+    if (!file_exists($target_dir)) {
+        mkdir($target_dir, 0777, true);
+    }
 
-    $target_file = $_FILES["fileToUpload"]["tmp_name"];
-    if (!file_exists($target_file)) {
-        $error = "File not found.";
-        echo $error;
+    move_uploaded_file($_FILES["fileToUpload"]["name"], $target_dir);
+
+    if (TRUE) {
+        echo " Sending File";
+        $scanResult = postFile();
     } else {
+        $error = "Error uploading file.";
+    }
 
-    //if (move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $target_file)) {
-        $scanResult = getFile($client, $a);
-    } //else {
-        // $error = "Sorry, there was an error uploading your file.";
-    //}
+    
 }
 
 // save scan result to CSV
@@ -86,9 +118,9 @@ function saveScanResult($result) {
     fclose($file);
 }
 
-if ($scanResult) {
-    saveScanResult($scanResult);
-}
+// if ($scanResult) {
+//     saveScanResult($scanResult);
+// }
 
 // get recent scans
 function getRecentScans() {
@@ -165,10 +197,10 @@ function getRecentScans() {
 </html>
     <?php if ($scanResult): ?>
         <h2>Scan Results</h2>
-        <p>File:  FIXME show file name and path</p>
-        <p>For File: <?php #echo $_FILES["fileToUpload"]["name"]; ?></p>
+        <p>For File: <?php echo $_FILES["fileToUpload"]["name"]; ?></p>
         <p>Aggregate Result: <strong><?php #echo getAggregateResult($scanResult); ?></strong></p>
         <h3>Detailed Results:</h3>
+        <?php echo $scanResult; ?>
         <?php foreach ($scanResult['data']['attributes']['results'] as $engine => $result): ?>
             <div class="result-item">
                 <strong><?php echo $engine; ?>:</strong> <?php echo $result['category']; ?>
