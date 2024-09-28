@@ -2,15 +2,13 @@
 // This line needs to be run in your terminal 'composer require guzzlehttp/guzzle'
 // Or you need to install the guzzle package manager to handle http requests.
 require_once('vendor/autoload.php');
-$getFileClient = new \GuzzleHttp\Client();
-$postFileClient = new \GuzzleHttp\Client();
-$getAnalysisClient = new \GuzzleHttp\Client();
 $a = getenv('VT_API2');
 if (! $a) {
     throw new Exception('No API key found');
 }
 
 function getFile() {
+    $getFileClient = new \GuzzleHttp\Client();
     $test_file_hash = "e19c1283c925b3206685ff522acfe3e6"; //test file_id for proof of concept
     $response = $getFileClient->request('GET', 'https://www.virustotal.com/api/v3/files/' . $test_file_hash, [
         'headers' => [
@@ -23,13 +21,14 @@ function getFile() {
     return $return;
 }
 
-function postFile() {
+function postFile($file, $a) {
+    $postFileClient = new \GuzzleHttp\Client();
     $vt_URL_For_Files = 'https://www.virustotal.com/api/v3/files/';
     $response = $postFileClient->request('POST', $vt_URL_For_Files, [
         'multipart' => [
             'name' => 'file',
-            'filename' => basename(path: $file),
-            'contents' => file_get_contents(filename: $file),//updating this part to read from a stream 'data:application/octet-stream;name=' . $filename . ';base64,' . $base64_encoded_filecontents,
+            'filename' => basename(path: $file["name"]),
+            'contents' => file_get_contents(filename: $file["name"]),//updating this part to read from a stream 'data:application/octet-stream;name=' . $filename . ';base64,' . $base64_encoded_filecontents,
             'headers' => [
                 'Content-Type' => 'application/pdf'
             ]
@@ -56,16 +55,16 @@ function postFile() {
 }
 
 // get the analysis data
-function getAnalysis($analysisLink) {
-
-    $response = $getAnalysisClient->request('GET', $analysisLink, [
+function getAnalysis($analysisLin, $a) {
+    $testAnalysis = 'https://www.virustotal.com/api/v3/analyses/MzBkNzE0ZjIyNDg1MDA3MWFlYzZiNzE5NzE0N2MzYzA6MTcyNjk2NTkzMA==';
+    $getAnalysisClient = new \GuzzleHttp\Client();
+    $response = $getAnalysisClient->request('GET', $testAnalysis, [
         'headers' => [
           'accept' => 'application/json',
           'x-apikey' => $a,
         ],
       ]);
 
-    echo $response->getBody();
     return $response->getBody();
       
 }
@@ -96,7 +95,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES["fileToUpload"])) {
 
     if (TRUE) {
         echo " Sending File";
-        $scanResult = postFile();
+        $scanResult = getAnalysis('https://www.virustotal.com/api/v3/analyses/MzBkNzE0ZjIyNDg1MDA3MWFlYzZiNzE5NzE0N2MzYzA6MTcyNjk2NTkzMA==', $a);
     } else {
         $error = "Error uploading file.";
     }
@@ -198,9 +197,8 @@ function getRecentScans() {
     <?php if ($scanResult): ?>
         <h2>Scan Results</h2>
         <p>For File: <?php echo $_FILES["fileToUpload"]["name"]; ?></p>
-        <p>Aggregate Result: <strong><?php #echo getAggregateResult($scanResult); ?></strong></p>
+        <p>Aggregate Result: <strong><?php echo getAggregateResult($scanResult); ?></strong></p>
         <h3>Detailed Results:</h3>
-        <?php echo $scanResult; ?>
         <?php foreach ($scanResult['data']['attributes']['results'] as $engine => $result): ?>
             <div class="result-item">
                 <strong><?php echo $engine; ?>:</strong> <?php echo $result['category']; ?>
